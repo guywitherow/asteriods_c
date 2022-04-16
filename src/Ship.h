@@ -3,7 +3,7 @@
 
 #include "GlutHeaders.h"
 #include "GenericTypes.h"
-#define rotationSpeed 200.0
+#define SHIP_ROT_SPEED 200.0
 
 typedef struct {
 	transform2d transform;

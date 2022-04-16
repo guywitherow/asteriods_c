@@ -21,7 +21,19 @@ void drawShip(Ship ship) {
 								 {circlePos(0 + ship.transform.rotation,ship.transform.scale.x,1) + ship.transform.position.x,
 									circlePos(0 + ship.transform.rotation,ship.transform.scale.y,0) + ship.transform.position.y},
 								 {circlePos(140 + ship.transform.rotation,ship.transform.scale.x,1) + ship.transform.position.x,
-									circlePos(140 + ship.transform.rotation,ship.transform.scale.y,0) + ship.transform.position.y}, };
+									circlePos(140 + ship.transform.rotation,ship.transform.scale.y,0) + ship.transform.position.y}};
+
+
+	float gunCenterX = circlePos(0 + ship.transform.rotation, ship.transform.scale.x, 1) + ship.transform.position.x;
+	float gunCenterY = circlePos(0 + ship.transform.rotation, ship.transform.scale.y, 0) + ship.transform.position.y;
+
+	GLfloat gunPoints[3][2] = {{circlePos(0 + ship.transform.rotation,ship.transform.scale.x * .2, 1) + gunCenterX,
+								circlePos(0 + ship.transform.rotation,ship.transform.scale.y * .2,0) + gunCenterY},
+								{circlePos(120 + ship.transform.rotation,ship.transform.scale.x * .2, 1) + gunCenterX,
+								circlePos(120 + ship.transform.rotation,ship.transform.scale.y * .2,0) + gunCenterY},
+								{circlePos(240 + ship.transform.rotation,ship.transform.scale.x * .2, 1) + gunCenterX,
+								circlePos(240 + ship.transform.rotation,ship.transform.scale.y * .2,0) + gunCenterY}};
+
 	//draw outline
 	glColor3f(1.0, 0.0, 0.0);
 	glBegin(GL_LINE_LOOP);
@@ -39,6 +51,17 @@ void drawShip(Ship ship) {
 	}
 
 	glEnd();
+
+	//draw gun
+	glColor3f(1.0, 1.0, 1.0);
+	glBegin(GL_POLYGON);
+
+	for (int i = 0; i < 3; i++) {
+		glVertex2fv(gunPoints[i]);
+	}
+
+	glEnd();
+
 }
 
 Ship moveShip(Ship ship, float dt, float speedAmount) {
@@ -54,7 +77,7 @@ Ship moveShip(Ship ship, float dt, float speedAmount) {
 }
 
 Ship rotShip(Ship ship, float rotDirection, float dt) {
-	float newShipRot = fmod(ship.transform.rotation + (rotDirection * rotationSpeed * dt),360);
+	float newShipRot = fmod(ship.transform.rotation + (rotDirection * SHIP_ROT_SPEED * dt),360);
 	ship.transform.rotation = newShipRot;
 	return ship;
 }

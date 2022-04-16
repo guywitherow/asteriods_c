@@ -3,6 +3,7 @@
 #include "Ship.h"
 #include "GenericTypes.h"
 #include "Bullet.h"
+#include "Asteroid.h"
 
 typedef struct {
 	boolean left;
@@ -11,15 +12,17 @@ typedef struct {
 	boolean fire;
 } heldKeys;
 
+
+#define FIRE_RATE .2
+#define BULLET_SPEED 5
+
 float g_last_time = 0.0;
 float lastRot = 0.0;
 float speedTimer = 0.0;
 
-
 float lastFired = 0;
-float fireRate = .2;
-float bulletSpeed = 5;
 Bullet bullets[100];
+Asteroid asteroids[100];
 int numOfBullets = 0;
 
 
@@ -46,7 +49,6 @@ Ship ship = {
 		//col circle 2 (hit)
 		{ { 0,0 }, .2}
 };
-
 
 int detectOverlap(collCircle circle1, collCircle circle2) {
 	float dx = circle2.pos.x - circle1.pos.x;
@@ -157,6 +159,13 @@ void renderFrame() {
 			drawBullet(bullets[i]);
 		}
 	}
+
+	for (int i = 0; i < 100; i++) {
+		if (asteroids[i].isLive) {
+			drawAsteroid(asteroids[i]);
+		}
+	}
+
 }
 
 
@@ -172,7 +181,7 @@ void resetGame() {
 			{.2, .2}
 		},
 		//speed
-		{0, 0},
+		{2, 2},
 		//is firing
 		0,
 		//col circle 1 (warning)
@@ -187,6 +196,12 @@ void resetGame() {
 		noBullet.transform.position.y = 1000;
 		bullets[i] = noBullet;
 	}
+
+	for (int i = 0; i < 6; i++) {
+		Asteroid newAsteroid = createAsteroid(ship);
+		asteroids[i] = newAsteroid;
+	}
+	
 }
 
 
@@ -346,16 +361,25 @@ void updateGame(float dt) {
 		}
 	}
 
-	if (ship.firing && lastFired > fireRate) {
+	for (int i = 0; i < 100; i++) {
+		if (asteroids[i].isLive == 1) {
+			asteroids[i] = moveAsteroid(asteroids[i], dt);
+			if (fabs(asteroids[i].transform.position.x) >= 9 || fabs(asteroids[i].transform.position.y) >= 5) {
+				bullets[i].isLive = 0;
+			}
+		}
+	}
+
+	if (ship.firing && lastFired > FIRE_RATE) {
 		lastFired = 0;
 
-		float bulletX = circlePos(0 + ship.transform.rotation, ship.transform.scale.x, 1) + ship.transform.position.x;
-		float bulletY = circlePos(0 + ship.transform.rotation, ship.transform.scale.y, 0) + ship.transform.position.y;
+		float bulletX = circlePos(0 + ship.transform.rotation, ship.transform.scale.x * 1.2, 1) + ship.transform.position.x;
+		float bulletY = circlePos(0 + ship.transform.rotation, ship.transform.scale.y * 1.2, 0) + ship.transform.position.y;
 		float bulletRot = ship.transform.rotation;
 		transform2d newTransform = { {bulletX,bulletY}, bulletRot, {.05,.05} };
 
-		float directionX = circlePos(ship.transform.rotation, bulletSpeed, 1);
-		float directionY = circlePos(ship.transform.rotation, bulletSpeed, 0);
+		float directionX = circlePos(ship.transform.rotation, BULLET_SPEED, 1);
+		float directionY = circlePos(ship.transform.rotation, BULLET_SPEED, 0);
 
 		vect2d direction = { directionX,directionY };
 
@@ -365,6 +389,7 @@ void updateGame(float dt) {
 		}
 		bullets[numOfBullets++] = newBullet;
 	}
+
 }
 
 
