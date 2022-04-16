@@ -14,17 +14,18 @@ typedef struct {
 
 
 #define FIRE_RATE .2
-#define BULLET_SPEED 5
 
 float g_last_time = 0.0;
 float lastRot = 0.0;
 float speedTimer = 0.0;
 
 float lastFired = 0;
+
 Bullet bullets[100];
-Asteroid asteroids[100];
 int numOfBullets = 0;
 
+Asteroid asteroids[100];
+int numOfAsteroids = 0;
 
 
 heldKeys currentHeldKeys = { 0,0,0,0 };
@@ -170,31 +171,23 @@ void renderFrame() {
 
 
 void resetGame() {
-	Ship resetShip = {
-		//transform
-		{
-			//pos
-			{0.0, 0.0},
-			//rot
-			0,
-			//scale
-			{.2, .2}
-		},
-		//speed
-		{2, 2},
-		//is firing
-		0,
-		//col circle 1 (warning)
-		{ { 0,0 }, 2.5},
-		//col circle 2 (hit)
-		{ { 0,0 }, .2}
-	};
+	Ship resetShip = createShip();
 	ship = resetShip;
+
 	for (int i = 0; i < 100; i++) {
 		Bullet noBullet = bullets[0];
 		noBullet.transform.position.x = 1000;
 		noBullet.transform.position.y = 1000;
+		noBullet.isLive = 0;
 		bullets[i] = noBullet;
+	}
+
+	for (int i = 0; i < 100; i++) {
+		Asteroid noAsteroid = asteroids[0];
+		noAsteroid.transform.position.x = 1000;
+		noAsteroid.transform.position.y = 1000;
+		noAsteroid.isLive = 0;
+		asteroids[i] = noAsteroid;
 	}
 
 	for (int i = 0; i < 6; i++) {
@@ -305,11 +298,11 @@ void onKeyUp(unsigned char key, int x, int y) {
 }
 
 
-void updateGame(float dt) {
-	if (fabs(ship.transform.position.x) + ship.transform.scale.x >= 4 || fabs(ship.transform.position.y) + ship.transform.scale.y >= 4) {
-		resetGame();
-	}
+void handleCollisions() {
+	
+}
 
+void updateGame(float dt) {
 	//////////HANDLE ROTATION
 	float rotDirection = 0;
 	//just left held
@@ -352,20 +345,48 @@ void updateGame(float dt) {
 		ship = moveShip(ship, dt, speedTimer);
 	}
 
+	//////////HANDLE BULLET MOVE AND UPDATE
+	int toRemove[10];
+	int removeCount = 0;
 	for (int i = 0; i < 100; i++) {
 		if (bullets[i].isLive == 1) {
 			bullets[i] = moveBullet(bullets[i], dt);
 			if (fabs(bullets[i].transform.position.x) >= 4 || fabs(bullets[i].transform.position.y) >= 4) {
 				bullets[i].isLive = 0;
+				removeBullet(bullets, i, numOfBullets);
+
+				printf("Number of B: %i | %i\n", i, numOfBullets);
+
+				numOfBullets--;
+				i--;
+				if (numOfBullets <= 0) {
+					numOfBullets = 0;
+				}
+				if (i <= 0) {
+					i = 0;
+				}
 			}
 		}
 	}
 
+	//////////HANDLE ASTEROID MOVE AND UPDATE
 	for (int i = 0; i < 100; i++) {
 		if (asteroids[i].isLive == 1) {
 			asteroids[i] = moveAsteroid(asteroids[i], dt);
-			if (fabs(asteroids[i].transform.position.x) >= 9 || fabs(asteroids[i].transform.position.y) >= 5) {
-				bullets[i].isLive = 0;
+			if (fabs(asteroids[i].transform.position.x) >= 15 || fabs(asteroids[i].transform.position.y) >= 12) {
+				asteroids[i].isLive = 0;
+				removeAsteroid(asteroids, i, numOfAsteroids);
+
+				printf("Number of A: %i | %i\n", i, numOfAsteroids);
+
+				numOfAsteroids--;
+				i--;
+				if (numOfAsteroids <= 0) {
+					numOfAsteroids = 0;
+				}
+				if (i <= 0) {
+					i = 0;
+				}
 			}
 		}
 	}
@@ -373,21 +394,26 @@ void updateGame(float dt) {
 	if (ship.firing && lastFired > FIRE_RATE) {
 		lastFired = 0;
 
-		float bulletX = circlePos(0 + ship.transform.rotation, ship.transform.scale.x * 1.2, 1) + ship.transform.position.x;
-		float bulletY = circlePos(0 + ship.transform.rotation, ship.transform.scale.y * 1.2, 0) + ship.transform.position.y;
-		float bulletRot = ship.transform.rotation;
-		transform2d newTransform = { {bulletX,bulletY}, bulletRot, {.05,.05} };
-
-		float directionX = circlePos(ship.transform.rotation, BULLET_SPEED, 1);
-		float directionY = circlePos(ship.transform.rotation, BULLET_SPEED, 0);
-
-		vect2d direction = { directionX,directionY };
-
-		Bullet newBullet = { newTransform, direction, {{0,0},.2}, 1 };
+		Bullet newBullet = createBullet(ship);
 		if (numOfBullets >= 100) {
 			numOfBullets = 0;
 		}
 		bullets[numOfBullets++] = newBullet;
+		printf("Number of B SPAWN: %i\n", numOfBullets);
+
+		Asteroid newAsteroid = createAsteroid(ship);
+		if (numOfAsteroids >= 100) {
+			numOfAsteroids = 0;
+		}
+		asteroids[numOfAsteroids++] = newAsteroid;
+		printf("Number of A SPAWN: %i\n", numOfAsteroids);
+	}
+
+	handleCollisions();
+
+
+	if (fabs(ship.transform.position.x) + ship.transform.scale.x >= 4 || fabs(ship.transform.position.y) + ship.transform.scale.y >= 4) {
+		resetGame();
 	}
 
 }

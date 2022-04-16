@@ -22,6 +22,6 @@ Asteroid createAsteroid(Ship ship);
 Asteroid moveAsteroid(Asteroid asteroid, float dt);
 
 void drawAsteroid(Asteroid asteroid);
-
+void removeAsteroid(Asteroid* array, int index, int array_length);
 
 #endif

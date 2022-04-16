@@ -81,3 +81,28 @@ Ship rotShip(Ship ship, float rotDirection, float dt) {
 	ship.transform.rotation = newShipRot;
 	return ship;
 }
+
+
+Ship createShip() {
+	Ship newShip = {
+		//transform
+		{
+			//pos
+			{0.0, 0.0},
+				//rot
+				0,
+				//scale
+			{ .2, .2 }
+		},
+			//speed
+			{ 2, 2 },
+				//is firing
+				0,
+				//col circle 1 (warning)
+			{ { 0,0 }, 2.5 },
+				//col circle 2 (hit)
+			{ { 0,0 }, .2 }
+	};
+
+	return newShip;
+}

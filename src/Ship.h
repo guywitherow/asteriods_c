@@ -15,6 +15,8 @@ typedef struct {
 
 void drawShip(Ship ship);
 
+Ship createShip();
+
 Ship moveShip(Ship ship, float dt, float speedAmount);
 
 Ship rotShip(Ship ship, float rotDirection, float dt);

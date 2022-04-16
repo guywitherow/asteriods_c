@@ -1,5 +1,6 @@
 
 #include "Bullet.h"
+#include "Ship.h"
 
 void drawBullet(Bullet bullet) {
 	//draw dot
@@ -17,4 +18,25 @@ Bullet moveBullet(Bullet bullet, float dt) {
 	bullet.transform.position = newBulPos;
 	bullet.hitCircle.pos = bullet.transform.position;
 	return bullet;
+}
+
+Bullet createBullet(Ship ship) {
+	float bulletX = circlePos(0 + ship.transform.rotation, ship.transform.scale.x * 1.2, 1) + ship.transform.position.x;
+	float bulletY = circlePos(0 + ship.transform.rotation, ship.transform.scale.y * 1.2, 0) + ship.transform.position.y;
+	float bulletRot = ship.transform.rotation;
+	transform2d newTransform = { {bulletX,bulletY}, bulletRot, {.05,.05} };
+
+	float directionX = circlePos(ship.transform.rotation, BULLET_SPEED, 1);
+	float directionY = circlePos(ship.transform.rotation, BULLET_SPEED, 0);
+
+	vect2d direction = { directionX,directionY };
+
+	Bullet newBullet = { newTransform, direction, {{0,0},.2}, 1 };
+
+	return newBullet;
+}
+
+void removeBullet(Bullet* array, int index, int array_length) {
+	int i;
+	for (i = index; i < array_length - 1; i++) array[i] = array[i + 1];
 }

@@ -3,6 +3,9 @@
 
 #include "GlutHeaders.h"
 #include "GenericTypes.h"
+#include "Ship.h"
+
+#define BULLET_SPEED 5
 
 typedef struct {
 	transform2d transform;
@@ -13,6 +16,10 @@ typedef struct {
 
 void drawBullet(Bullet bullet);
 
+Bullet createBullet(Ship ship);
+
 Bullet moveBullet(Bullet bullet, float dt);
+
+void removeBullet(Bullet* array, int index, int array_length);
 
 #endif
