@@ -4,22 +4,37 @@
 #include "GenericTypes.h"
 #include "Bullet.h"
 #include "Asteroid.h"
+#include "Particle.h"
 
 typedef struct {
 	boolean left;
 	boolean right;
 	boolean forward;
 	boolean fire;
+	boolean switchGun;
 } heldKeys;
 
 
 #define FIRE_RATE .2
+#define FIRE_RATE_CHASER 1.0
+#define NEXT_ROUND_TIMER 5.00
 
 float g_last_time = 0.0;
 float lastRot = 0.0;
 float speedTimer = 0.0;
+float roundTimer = 3.0;
+float totalTimer = 0.0;
+float endGameTimer = 0.0;
+int score = 0;
+int roundCounter = 1;
 
-float lastFired = 0;
+boolean switchGuns = 0;
+boolean holdingSwitch = 0;
+
+//0 = first time, 1 = death, 2 = normal play
+int gameState = 0;
+
+float lastFired = 0.0;
 
 Bullet bullets[100];
 int numOfBullets = 0;
@@ -27,70 +42,33 @@ int numOfBullets = 0;
 Asteroid asteroids[100];
 int numOfAsteroids = 0;
 
+Particle particles[100];
+int numOfParticles = 0;
 
 heldKeys currentHeldKeys = { 0,0,0,0 };
 heldKeys lastHeldKeys;
 
 Ship ship = {
-		//transform
-		{
-			//pos
-			{0.0, 0.0},
-			//rot
-			0,
-			//scale
-			{.2, .2}
-		},
-		//speed
-		{2, 2},
-		//is firing
-		0,
-		//col circle 1 (warning)
-		{ { 0,0 }, 1.5},
-		//col circle 2 (hit)
-		{ { 0,0 }, .2}
-};
-
-int detectOverlap(collCircle circle1, collCircle circle2) {
-	float dx = circle2.pos.x - circle1.pos.x;
-	float dy = circle2.pos.y - circle1.pos.y;
-	float radii = circle1.radius + circle2.radius;
-	if ((radii * radii) <= (dx * dx) + (dy * dy))
+	//transform
 	{
-		return 0;
-	}
-	return 1;
-}
-
-
-//returns a point 2d with the co-ordinates representing the lines
-// 1 = positive, -1 = negative, 0 = not close to either
-point2d detectLineOverlap(collCircle circle, float limitX, float limitY) {
-
-	int isNearX = 0;
-	int isNearY = 0;
-
-	float quadrantX = 1;
-	float quadrantY = 1;
-	if (circle.pos.x < 0) {
-		quadrantX = -1;
-	}
-	if (circle.pos.y < 0) {
-		quadrantY = -1;
-	}
-
-	if (fabs(circle.pos.x + (circle.radius * quadrantX)) > limitX) {
-		isNearX = 1 * quadrantX;
-	}
-	if (fabs(circle.pos.y + (circle.radius * quadrantY)) > limitY) {
-		isNearY = 1 * quadrantY;
-	}
-
-	point2d returnPoint = { isNearX, isNearY };
-
-	return returnPoint;
-}
-
+		//pos
+		{0.0, 0.0},
+		//rot
+		0,
+		//scale
+	{ .2, .2 }
+	},
+	//speed
+	{ 2, 2 },
+	//is firing
+	0,
+	//col circle 1 (warning)
+	{ { 0,0 }, 1.5 },
+	//col circle 2 (hit)
+	{ { 0,0 }, .1 },
+	0,
+	0
+};
 
 /// <summary>
 /// Handles the rest of the initalisation
@@ -105,13 +83,45 @@ void init() {
 }
 
 
+void renderHUD() {
+
+	if (gameState != 2) {
+		if (gameState == 0) {
+			glColor3f(1.0, 1.0, 1.0);
+			glRasterPos2f(-.8, .4);
+			glutBitmapString(GLUT_BITMAP_HELVETICA_18, "Press Any Key to Continue...");
+		}
+		else {
+			glColor3f(1.0, 1.0, 1.0);
+			glRasterPos2f(-.5, .55);
+			glutBitmapString(GLUT_BITMAP_HELVETICA_18, "Game Over, Man!");
+			
+			glColor3f(1.0, 1.0, 1.0);
+			glRasterPos2f(-.8, .4);
+			glutBitmapString(GLUT_BITMAP_HELVETICA_18, "Press Any Key to Continue...");
+		}
+	}
+
+	glColor3f(1.0, 1.0, 1.0);
+	glRasterPos2f(-6, 4);
+	char scoreString[20];
+	snprintf(scoreString, 20, "%d", score);
+	glutBitmapString(GLUT_BITMAP_HELVETICA_18, scoreString);
+
+	char timeString[20];
+
+	snprintf(timeString, 20, "%02.0f:%02.2f", roundf(totalTimer / 60), fmod(totalTimer,60.00));
+	glRasterPos2f(6, 4);
+	glutBitmapString(GLUT_BITMAP_HELVETICA_18, timeString);
+}
+
 /// <summary>
 /// Render Function
 /// </summary>
 void renderFrame() {
 
 
-
+	renderHUD();
 
 	GLfloat arenaPoints[4][3] = { {4,4,0},
 								{-4,4,0} ,
@@ -155,18 +165,17 @@ void renderFrame() {
 	glEnd();
 	drawShip(ship);
 
-	for (int i = 0; i < 100; i++) {
+	for (int i = 0; i < numOfBullets; i++) {
 		if (bullets[i].isLive) {
 			drawBullet(bullets[i]);
 		}
 	}
 
-	for (int i = 0; i < 100; i++) {
+	for (int i = 0; i < numOfAsteroids; i++) {
 		if (asteroids[i].isLive) {
 			drawAsteroid(asteroids[i]);
 		}
 	}
-
 }
 
 
@@ -182,19 +191,48 @@ void resetGame() {
 		bullets[i] = noBullet;
 	}
 
+	numOfBullets = 0;
+
 	for (int i = 0; i < 100; i++) {
-		Asteroid noAsteroid = asteroids[0];
+		Asteroid noAsteroid = createAsteroid(ship);
 		noAsteroid.transform.position.x = 1000;
 		noAsteroid.transform.position.y = 1000;
 		noAsteroid.isLive = 0;
+		noAsteroid.insideArena = 0;
+		noAsteroid.isTouching = 0;
 		asteroids[i] = noAsteroid;
 	}
+	numOfAsteroids = 0;
 
-	for (int i = 0; i < 6; i++) {
-		Asteroid newAsteroid = createAsteroid(ship);
-		asteroids[i] = newAsteroid;
-	}
-	
+	roundCounter = 1;
+	roundTimer = 3.00;
+
+	g_last_time = 0.0;
+	lastRot = 0.0;
+	speedTimer = 0.0;
+	roundTimer = 3.0;
+	roundCounter = 1;
+	totalTimer = 0.0;
+	endGameTimer = 0.0;
+
+	score = 0;
+
+	switchGuns = 0;
+
+	gameState = 1;
+
+	lastFired = 0.0;
+
+	numOfAsteroids = 0;
+
+	numOfParticles = 0;
+
+	currentHeldKeys.fire = 0;
+	currentHeldKeys.left = 0;
+	currentHeldKeys.right = 0;
+	currentHeldKeys.forward = 0;
+	currentHeldKeys.switchGun = 0;
+	lastHeldKeys;
 }
 
 
@@ -263,6 +301,14 @@ void onKeyPress(unsigned char key, int x, int y) {
 	case ' ':
 		currentHeldKeys.fire = 1;
 		break;
+
+	case 'z':
+		currentHeldKeys.switchGun = 1;
+		if (!holdingSwitch) {
+			switchGuns = 1;
+		}
+		holdingSwitch = 1;
+
 	default:
 		break;
 	}
@@ -270,6 +316,7 @@ void onKeyPress(unsigned char key, int x, int y) {
 
 
 void onKeyUp(unsigned char key, int x, int y) {
+	
 	switch (key)
 	{
 	case 27:
@@ -292,129 +339,264 @@ void onKeyUp(unsigned char key, int x, int y) {
 	case ' ':
 		currentHeldKeys.fire = 0;
 		break;
+
+	case 'z':
+		currentHeldKeys.switchGun = 0;
+		holdingSwitch = 0;
+		
 	default:
 		break;
 	}
 }
 
 
-void handleCollisions() {
-	
+void generateExplosion(float x, float y) {
+
 }
 
-void updateGame(float dt) {
-	//////////HANDLE ROTATION
-	float rotDirection = 0;
-	//just left held
-	if (currentHeldKeys.left && !currentHeldKeys.right) {
-		rotDirection = -1;
+
+void handleCollisions() {
+	if ((fabs(ship.transform.position.x) + ship.transform.scale.x >= 4 || 
+		fabs(ship.transform.position.y) + ship.transform.scale.y >= 4) &&
+		ship.isLive) {
+		gameState = 1;
+		ship.isLive = 0;
+		endGameTimer = 0.0;
 	}
-	//just right held
-	else if (!currentHeldKeys.left && currentHeldKeys.right) {
-		rotDirection = 1;
-	}
-	//neither held
-	else if (!currentHeldKeys.left && !currentHeldKeys.right) {
-		rotDirection = 0;
-	}
-	else if (currentHeldKeys.left && currentHeldKeys.right) {
-		rotDirection = lastRot;
-	}
-
-	lastRot = rotDirection;
-	lastHeldKeys = currentHeldKeys;
-
-	ship = rotShip(ship, rotDirection, dt);
-
-
-
-	//////////HANDLE MOVE FORWARD
-
-	if (currentHeldKeys.forward) {
-		speedTimer += dt;
-		if (speedTimer > .3) {
-			speedTimer = .3;
+	for (int i = 0; i < numOfAsteroids;i++) {
+		
+		if (detectOverlap(ship.hitCircle, asteroids[i].hitCircle)) {
+			gameState = 1;
+			ship.isLive = 0;
+			endGameTimer = 0.0;
 		}
-		ship = moveShip(ship, dt, speedTimer);
-	}
-	else if (speedTimer != 0) {
-		speedTimer -= dt;
-		if (speedTimer < 0) {
-			speedTimer = 0;
-		}
-		ship = moveShip(ship, dt, speedTimer);
-	}
+		
+		if (asteroids[i].isLive) {
+			for (int j = 0; j < numOfBullets; j++) {
+				if (bullets[j].isLive && detectOverlap(asteroids[i].hitCircle, bullets[j].hitCircle)) {
+					//generateExplosion(asteroids[i].transform.position.x, asteroids[i].transform.position.y);
 
-	//////////HANDLE BULLET MOVE AND UPDATE
-	int toRemove[10];
-	int removeCount = 0;
-	for (int i = 0; i < 100; i++) {
-		if (bullets[i].isLive == 1) {
-			bullets[i] = moveBullet(bullets[i], dt);
-			if (fabs(bullets[i].transform.position.x) >= 4 || fabs(bullets[i].transform.position.y) >= 4) {
-				bullets[i].isLive = 0;
-				removeBullet(bullets, i, numOfBullets);
-
-				printf("Number of B: %i | %i\n", i, numOfBullets);
-
-				numOfBullets--;
-				i--;
-				if (numOfBullets <= 0) {
-					numOfBullets = 0;
-				}
-				if (i <= 0) {
-					i = 0;
+					bullets[j].transform.position.x = 1000;
+					bullets[j].isLive = 0;
+					if (--asteroids[i].HP == 0) {
+						score++;
+						asteroids[i].isLive = 0;
+						removeAsteroid(asteroids, i, numOfAsteroids);
+						numOfAsteroids--;
+						i--;
+						if (numOfAsteroids <= 0) {
+							numOfAsteroids = 0;
+						}
+						if (i <= 0) {
+							i = 0;
+						}
+						j = numOfBullets + 100;
+					}
 				}
 			}
+			point2d hitEdge = detectLineOverlap(asteroids[i].hitCircle, 4, 4);
+			if ((hitEdge.x != 0 || hitEdge.y != 0)) {
+				if (asteroids[i].isTouching != 2) {
+					asteroids[i].isTouching = 1;
+
+					int side = hitEdge.x + (hitEdge.y * 2);
+					printf("Asteroid %i is touching the %i edge! %i %i %i\n", i, side, asteroids[i].hitCircle.radius, asteroids[i].hitCircle.pos.x, asteroids[i].hitCircle.pos.y);
+
+					//bounnnce
+					if (asteroids[i].insideArena && asteroids[i].isTouching == 1) {
+
+						asteroids[i].isTouching = 2;
+						if (hitEdge.x != 0 && hitEdge.y != 0) {
+							asteroids[i].movingDirection.x *= -1;
+							asteroids[i].movingDirection.y *= -1;
+						}
+						else if (hitEdge.x != 0) {
+							asteroids[i].movingDirection.x *= -1;
+						}
+						else {
+							asteroids[i].movingDirection.y *= -1;
+						}
+					}
+
+					//wait for it...
+					else {
+						point2d detectInside = detectLineOverlap(asteroids[i].hitCircle, 2, 2);
+						if (detectInside.x != 0 || detectInside.y != 0) {
+							printf("Asteroid %i thinks it is inside at pos %f %f\n", i, asteroids[i].hitCircle.pos.x, asteroids[i].hitCircle.pos.y);
+							asteroids[i].insideArena = 1;
+						}
+					}
+				}
+
+				
+			}
+			else {
+				asteroids[i].isTouching = 0;
+			}
+
+
 		}
 	}
+}
 
-	//////////HANDLE ASTEROID MOVE AND UPDATE
-	for (int i = 0; i < 100; i++) {
-		if (asteroids[i].isLive == 1) {
-			asteroids[i] = moveAsteroid(asteroids[i], dt);
-			if (fabs(asteroids[i].transform.position.x) >= 15 || fabs(asteroids[i].transform.position.y) >= 12) {
-				asteroids[i].isLive = 0;
-				removeAsteroid(asteroids, i, numOfAsteroids);
 
-				printf("Number of A: %i | %i\n", i, numOfAsteroids);
+void updateGame(float dt) {
 
-				numOfAsteroids--;
-				i--;
-				if (numOfAsteroids <= 0) {
+	totalTimer += dt;
+	endGameTimer += dt;
+
+	if (gameState != 2 && endGameTimer > 1) {
+		if (currentHeldKeys.fire || currentHeldKeys.forward || currentHeldKeys.left || currentHeldKeys.right || currentHeldKeys.switchGun) {
+			resetGame();
+			gameState = 2;
+		}
+	}
+	else {
+		if (ship.isLive) {
+			//////////HANDLE ROTATION
+			float rotDirection = 0;
+			//just left held
+			if (currentHeldKeys.left && !currentHeldKeys.right) {
+				rotDirection = -1;
+			}
+			//just right held
+			else if (!currentHeldKeys.left && currentHeldKeys.right) {
+				rotDirection = 1;
+			}
+			//neither held
+			else if (!currentHeldKeys.left && !currentHeldKeys.right) {
+				rotDirection = 0;
+			}
+			else if (currentHeldKeys.left && currentHeldKeys.right) {
+				rotDirection = lastRot;
+			}
+
+			lastRot = rotDirection;
+			lastHeldKeys = currentHeldKeys;
+
+			ship = rotShip(ship, rotDirection, dt);
+
+
+
+			//////////HANDLE MOVE FORWARD
+
+			if (currentHeldKeys.forward) {
+				speedTimer += dt;
+				if (speedTimer > .3) {
+					speedTimer = .3;
+				}
+				ship = moveShip(ship, dt, speedTimer);
+			}
+			else if (speedTimer != 0) {
+				speedTimer -= dt;
+				if (speedTimer < 0) {
+					speedTimer = 0;
+				}
+				ship = moveShip(ship, dt, speedTimer);
+			}
+		}
+
+		
+
+		if (currentHeldKeys.switchGun && switchGuns) {
+			printf("gunMode\n");
+			switchGuns = 0;
+			if (ship.gunMode == 1) {
+				printf("Normal Gun\n");
+				lastFired = 0;
+				ship.gunMode = 0;
+			}
+			else {
+				printf("Chasers!\n");
+				lastFired = 0;
+				ship.gunMode = 1;
+			}
+		}
+
+
+		if (ship.firing && ship.isLive && ((ship.gunMode == 0 && lastFired > FIRE_RATE) || (ship.gunMode == 1 && lastFired > FIRE_RATE_CHASER))) {
+			lastFired = 0;
+
+			Bullet newBullet = createBullet(ship);
+			if (numOfBullets >= 100) {
+				numOfBullets = 0;
+			}
+			bullets[numOfBullets++] = newBullet;
+		}
+
+		handleCollisions();
+		/////HANDLE ROUND TIMER
+		roundTimer += dt;
+		if (roundTimer > NEXT_ROUND_TIMER) {
+			roundTimer = 0;
+			for (int i = 0; i < roundCounter; i++) {
+				Asteroid newAsteroid = createAsteroid(ship);
+				if (numOfAsteroids >= 100) {
 					numOfAsteroids = 0;
 				}
-				if (i <= 0) {
-					i = 0;
+				asteroids[numOfAsteroids++] = newAsteroid;
+			}
+
+			roundCounter++;
+		}
+
+		//////////HANDLE BULLET MOVE AND UPDATE
+		for (int i = 0; i < numOfBullets; i++) {
+			if (bullets[i].isLive == 1) {
+				int closestIndex = -1;
+				float closestDistance = 500.00;
+				if (bullets[i].chaser && numOfAsteroids > 0) {
+					for (int j = 0; j < numOfAsteroids; j++) {
+
+						float xDiff = asteroids[j].transform.position.x - bullets[i].transform.position.x;
+						float yDiff = asteroids[j].transform.position.y - bullets[i].transform.position.y;
+
+						float distance = sqrt((xDiff * xDiff) + (yDiff * yDiff));
+
+						if (distance < closestDistance) {
+							closestDistance = distance;
+							closestIndex = j;
+						}
+					}
+				}
+
+				bullets[i] = moveBullet(bullets[i], dt, asteroids[closestIndex].transform.position, closestIndex);
+				if (fabs(bullets[i].transform.position.x) >= 4 || fabs(bullets[i].transform.position.y) >= 4) {
+					bullets[i].isLive = 0;
+					removeBullet(bullets, i, numOfBullets);
+					numOfBullets--;
+					i--;
+					if (numOfBullets <= 0) {
+						numOfBullets = 0;
+					}
+					if (i <= 0) {
+						i = 0;
+					}
+				}
+			}
+		}
+
+		//////////HANDLE ASTEROID MOVE AND UPDATE
+		for (int i = 0; i < numOfAsteroids; i++) {
+			if (asteroids[i].isLive == 1) {
+				asteroids[i] = moveAsteroid(asteroids[i], dt);
+				if (fabs(asteroids[i].transform.position.x) >= 10 || fabs(asteroids[i].transform.position.y) >= 10) {
+					asteroids[i].isLive = 0;
+					removeAsteroid(asteroids, i, numOfAsteroids);
+					printf("removing asteroid%i\n", i);
+					numOfAsteroids--;
+					i--;
+					if (numOfAsteroids <= 0) {
+						numOfAsteroids = 0;
+					}
+					if (i <= 0) {
+						i = 0;
+					}
 				}
 			}
 		}
 	}
-
-	if (ship.firing && lastFired > FIRE_RATE) {
-		lastFired = 0;
-
-		Bullet newBullet = createBullet(ship);
-		if (numOfBullets >= 100) {
-			numOfBullets = 0;
-		}
-		bullets[numOfBullets++] = newBullet;
-		printf("Number of B SPAWN: %i\n", numOfBullets);
-
-		Asteroid newAsteroid = createAsteroid(ship);
-		if (numOfAsteroids >= 100) {
-			numOfAsteroids = 0;
-		}
-		asteroids[numOfAsteroids++] = newAsteroid;
-		printf("Number of A SPAWN: %i\n", numOfAsteroids);
-	}
-
-	handleCollisions();
-
-
-	if (fabs(ship.transform.position.x) + ship.transform.scale.x >= 4 || fabs(ship.transform.position.y) + ship.transform.scale.y >= 4) {
-		resetGame();
-	}
+	
 
 }
 

@@ -30,4 +30,7 @@ typedef struct {
 
 float circlePos(float degree, float r, boolean isX);
 
+point2d detectLineOverlap(collCircle circle, float limitX, float limitY);
+int detectOverlap(collCircle circle1, collCircle circle2);
+
 #endif

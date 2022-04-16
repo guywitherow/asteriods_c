@@ -23,17 +23,6 @@ void drawShip(Ship ship) {
 								 {circlePos(140 + ship.transform.rotation,ship.transform.scale.x,1) + ship.transform.position.x,
 									circlePos(140 + ship.transform.rotation,ship.transform.scale.y,0) + ship.transform.position.y}};
 
-
-	float gunCenterX = circlePos(0 + ship.transform.rotation, ship.transform.scale.x, 1) + ship.transform.position.x;
-	float gunCenterY = circlePos(0 + ship.transform.rotation, ship.transform.scale.y, 0) + ship.transform.position.y;
-
-	GLfloat gunPoints[3][2] = {{circlePos(0 + ship.transform.rotation,ship.transform.scale.x * .2, 1) + gunCenterX,
-								circlePos(0 + ship.transform.rotation,ship.transform.scale.y * .2,0) + gunCenterY},
-								{circlePos(120 + ship.transform.rotation,ship.transform.scale.x * .2, 1) + gunCenterX,
-								circlePos(120 + ship.transform.rotation,ship.transform.scale.y * .2,0) + gunCenterY},
-								{circlePos(240 + ship.transform.rotation,ship.transform.scale.x * .2, 1) + gunCenterX,
-								circlePos(240 + ship.transform.rotation,ship.transform.scale.y * .2,0) + gunCenterY}};
-
 	//draw outline
 	glColor3f(1.0, 0.0, 0.0);
 	glBegin(GL_LINE_LOOP);
@@ -52,8 +41,31 @@ void drawShip(Ship ship) {
 
 	glEnd();
 
+	float gunCenterX = circlePos(0 + ship.transform.rotation, ship.transform.scale.x, 1) + ship.transform.position.x;
+	float gunCenterY = circlePos(0 + ship.transform.rotation, ship.transform.scale.y, 0) + ship.transform.position.y;
+
+	float gunChange = 0;
+	if (ship.gunMode == 1) {
+		gunChange = .1;
+	}
+
+	GLfloat gunPoints[3][2] = {{circlePos(0 + ship.transform.rotation,ship.transform.scale.x * .2, 1 + gunChange) + gunCenterX,
+								circlePos(0 + ship.transform.rotation,ship.transform.scale.y * .2,0 + gunChange) + gunCenterY},
+								{circlePos(120 + ship.transform.rotation,ship.transform.scale.x * .2, 1) + gunCenterX,
+								circlePos(120 + ship.transform.rotation,ship.transform.scale.y * .2,0) + gunCenterY},
+								{circlePos(240 + ship.transform.rotation,ship.transform.scale.x * .2, 1) + gunCenterX,
+								circlePos(240 + ship.transform.rotation,ship.transform.scale.y * .2,0) + gunCenterY}};
+
+	
+
 	//draw gun
-	glColor3f(1.0, 1.0, 1.0);
+	if (ship.gunMode == 0) {
+		glColor3f(1.0, 1.0, 1.0);
+	}
+	else if (ship.gunMode == 1) {
+		glColor3f(0.3, 0.1, 0.1);
+	}
+	
 	glBegin(GL_POLYGON);
 
 	for (int i = 0; i < 3; i++) {
@@ -65,6 +77,7 @@ void drawShip(Ship ship) {
 }
 
 Ship moveShip(Ship ship, float dt, float speedAmount) {
+
 	float newShipPosX = ship.transform.position.x + circlePos(ship.transform.rotation, ship.speed.x * dt * (speedAmount * 3), 1);
 	float newShipPosY = ship.transform.position.y + circlePos(ship.transform.rotation, ship.speed.y * dt * (speedAmount * 3), 0);
 	point2d newShipPos = { newShipPosX ,newShipPosY };
@@ -94,14 +107,16 @@ Ship createShip() {
 				//scale
 			{ .2, .2 }
 		},
-			//speed
-			{ 2, 2 },
-				//is firing
-				0,
-				//col circle 1 (warning)
-			{ { 0,0 }, 2.5 },
-				//col circle 2 (hit)
-			{ { 0,0 }, .2 }
+		//speed
+		{ 2, 2 },
+		//is firing
+		0,
+		//col circle 1 (warning)
+		{ { 0,0 }, 1.5 },
+		//col circle 2 (hit)
+		{ { 0,0 }, .1 },
+		0,
+		1
 	};
 
 	return newShip;

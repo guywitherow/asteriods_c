@@ -11,6 +11,9 @@ typedef struct {
 	boolean firing;
 	collCircle warningCollision;
 	collCircle hitCircle;
+	//gun = 0, cannon = 1
+	int gunMode;
+	boolean isLive;
 } Ship;
 
 void drawShip(Ship ship);
