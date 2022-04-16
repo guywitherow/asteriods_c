@@ -155,10 +155,17 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\Asteroid.c" />
+    <ClCompile Include="..\src\Bullet.c" />
+    <ClCompile Include="..\src\GenericTypes.c" />
     <ClCompile Include="..\src\main.c" />
     <ClCompile Include="..\src\Ship.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\Asteroid.h" />
+    <ClInclude Include="..\src\Bullet.h" />
+    <ClInclude Include="..\src\GenericTypes.h" />
+    <ClInclude Include="..\src\GlutHeaders.h" />
     <ClInclude Include="..\src\Ship.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
