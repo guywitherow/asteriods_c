@@ -129,7 +129,7 @@ void renderFrame() {
 								{4,-4,0} };
 
 
-	point2d warningLines = detectLineOverlap(ship.warningCollision, 4, 4);
+	point2d warningLines = isInsideBox(ship.warningCollision, 4, 4);
 
 	glColor3f(1.0, 0.0, 0.0);
 	glBegin(GL_LINES);
@@ -163,6 +163,7 @@ void renderFrame() {
 		glVertex3fv(arenaPoints[i]);
 	}
 	glEnd();
+
 	drawShip(ship);
 
 	for (int i = 0; i < numOfBullets; i++) {
@@ -198,8 +199,7 @@ void resetGame() {
 		noAsteroid.transform.position.x = 1000;
 		noAsteroid.transform.position.y = 1000;
 		noAsteroid.isLive = 0;
-		noAsteroid.insideArena = 0;
-		noAsteroid.isTouching = 0;
+		noAsteroid.bounceState = Outside;
 		asteroids[i] = noAsteroid;
 	}
 	numOfAsteroids = 0;
@@ -246,7 +246,6 @@ void onDisplay() {
 	glEnable(GL_DEPTH_TEST);
 
 	renderFrame();
-
 
 	int err;
 	while ((err = glGetError()) != GL_NO_ERROR)
@@ -356,6 +355,8 @@ void generateExplosion(float x, float y) {
 
 
 void handleCollisions() {
+	
+	//if the ship hits the arena, game over
 	if ((fabs(ship.transform.position.x) + ship.transform.scale.x >= 4 || 
 		fabs(ship.transform.position.y) + ship.transform.scale.y >= 4) &&
 		ship.isLive) {
@@ -365,19 +366,26 @@ void handleCollisions() {
 	}
 	for (int i = 0; i < numOfAsteroids;i++) {
 		
+		//if the ship hits an asteroid, game over
+		/*
 		if (detectOverlap(ship.hitCircle, asteroids[i].hitCircle)) {
 			gameState = 1;
 			ship.isLive = 0;
 			endGameTimer = 0.0;
-		}
+		}*/
 		
 		if (asteroids[i].isLive) {
+			//check for bullet collision
 			for (int j = 0; j < numOfBullets; j++) {
+
+
 				if (bullets[j].isLive && detectOverlap(asteroids[i].hitCircle, bullets[j].hitCircle)) {
 					//generateExplosion(asteroids[i].transform.position.x, asteroids[i].transform.position.y);
 
 					bullets[j].transform.position.x = 1000;
 					bullets[j].isLive = 0;
+					
+					//bullets destroyed the asteroid
 					if (--asteroids[i].HP == 0) {
 						score++;
 						asteroids[i].isLive = 0;
@@ -394,47 +402,41 @@ void handleCollisions() {
 					}
 				}
 			}
-			point2d hitEdge = detectLineOverlap(asteroids[i].hitCircle, 4, 4);
+
+
+
+			point2d hitEdge = isInsideBox(asteroids[i].hitCircle, 4, 4);
+
+			//if we are in the range to hit either the x or y bound of the arena
 			if ((hitEdge.x != 0 || hitEdge.y != 0)) {
-				if (asteroids[i].isTouching != 2) {
-					asteroids[i].isTouching = 1;
+				
+				printf("%i, %i", hitEdge.x, hitEdge.y);
 
-					int side = hitEdge.x + (hitEdge.y * 2);
-					printf("Asteroid %i is touching the %i edge! %i %i %i\n", i, side, asteroids[i].hitCircle.radius, asteroids[i].hitCircle.pos.x, asteroids[i].hitCircle.pos.y);
-
-					//bounnnce
-					if (asteroids[i].insideArena && asteroids[i].isTouching == 1) {
-
-						asteroids[i].isTouching = 2;
-						if (hitEdge.x != 0 && hitEdge.y != 0) {
-							asteroids[i].movingDirection.x *= -1;
-							asteroids[i].movingDirection.y *= -1;
-						}
-						else if (hitEdge.x != 0) {
-							asteroids[i].movingDirection.x *= -1;
-						}
-						else {
-							asteroids[i].movingDirection.y *= -1;
-						}
+				//this has already crossed the boundary once
+				if (asteroids[i].bounceState == Inside) {
+					printf("WHY WE NO BOUNCE");
+					if (hitEdge.x != 0) {
+						asteroids[i].movingDirection.x *= -1;
 					}
-
-					//wait for it...
 					else {
-						point2d detectInside = detectLineOverlap(asteroids[i].hitCircle, 2, 2);
-						if (detectInside.x != 0 || detectInside.y != 0) {
-							printf("Asteroid %i thinks it is inside at pos %f %f\n", i, asteroids[i].hitCircle.pos.x, asteroids[i].hitCircle.pos.y);
-							asteroids[i].insideArena = 1;
-						}
+						asteroids[i].movingDirection.y *= -1;
 					}
 				}
 
+				//first time crossing the edge, so we'll mark it as such
+				else if (asteroids[i].bounceState == Outside) {
+					printf("TOUCHING\n");
+					asteroids[i].bounceState = Touching;
+				}
 				
 			}
 			else {
-				asteroids[i].isTouching = 0;
+				if (asteroids[i].bounceState == Touching) {
+					printf("MOVING INSIDE\n");
+					asteroids[i].bounceState = Inside;
+
+				}
 			}
-
-
 		}
 	}
 }

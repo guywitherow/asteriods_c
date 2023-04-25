@@ -51,9 +51,7 @@ Asteroid createAsteroid(Ship ship) {
 	float rotSpeed = fmod(rand() / 1000.00, MAX_SPIN - MIN_SPIN) + MIN_SPIN;
 
 	Asteroid newAsteroid = { newTransform, moveDir, {newTransform.position,randomSize+.05}, 1, 
-		pointCount, spikeSeed, rotSpeed, HP, 0, 0};
-
-	
+		pointCount, spikeSeed, rotSpeed, HP, 0};
 
 	return newAsteroid;
 }
@@ -62,12 +60,9 @@ Asteroid moveAsteroid(Asteroid asteroid, float dt) {
 	float newAsteroidPosX = asteroid.transform.position.x + (asteroid.movingDirection.x * dt);
 	float newAsteroidPosY = asteroid.transform.position.y + (asteroid.movingDirection.y * dt);
 	point2d newAsteroidPos = { newAsteroidPosX ,newAsteroidPosY };
-
 	asteroid.transform.position = newAsteroidPos;
 	asteroid.hitCircle.pos = asteroid.transform.position;
-
 	asteroid.transform.rotation += asteroid.rotSpeed;
-
 	return asteroid;
 }
 

@@ -27,25 +27,24 @@ int detectOverlap(collCircle circle1, collCircle circle2) {
 
 //returns a point 2d with the co-ordinates representing the lines
 // 1 = positive, -1 = negative, 0 = not close to either
-point2d detectLineOverlap(collCircle circle, float limitX, float limitY) {
-
+point2d isInsideBox(collCircle circle, float borderXPos, float borderYPos) {
 	int isNearX = 0;
 	int isNearY = 0;
-
-	float quadrantX = 1;
-	float quadrantY = 1;
-	if (circle.pos.x < 0) {
-		quadrantX = -1;
-	}
-	if (circle.pos.y < 0) {
-		quadrantY = -1;
-	}
-
-	if (fabs(circle.pos.x + (circle.radius * quadrantX)) > limitX && fabs(circle.pos.x - (circle.radius * quadrantX)) < limitX) {
-		isNearX = 1 * quadrantX;
-	}
-	if (fabs(circle.pos.y + (circle.radius * quadrantY)) > limitY && fabs(circle.pos.y - (circle.radius * quadrantY)) < limitY) {
-		isNearY = 1 * quadrantY;
+	
+	//all logic can be simplified with these values
+	float circleX = fabs(circle.pos.x);
+	float circleY = fabs(circle.pos.y);
+	float radius = circle.radius;
+	borderXPos = fabs(borderXPos);
+	borderYPos = fabs(borderYPos);
+	
+	if (circleX - radius < borderXPos && circleY - radius < borderYPos) {
+		if (circleX + radius > borderXPos) {
+			isNearX = 1;
+		}
+		if (circleY + radius > borderYPos) {
+			isNearY = 1;
+		}
 	}
 
 	point2d returnPoint = { isNearX, isNearY };

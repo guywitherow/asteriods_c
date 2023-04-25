@@ -17,6 +17,7 @@
 
 #define CIRCLE_POINTS 10
 
+enum bounceState {Outside = 0, Touching = 1, Inside = 2};
 
 typedef struct {
 	transform2d transform;
@@ -27,8 +28,7 @@ typedef struct {
 	float spikeSeed;
 	float rotSpeed;
 	int HP;
-	boolean insideArena;
-	int isTouching;
+	enum bounceState bounceState;
 } Asteroid;
 
 Asteroid createAsteroid(Ship ship);
